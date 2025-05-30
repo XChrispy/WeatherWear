@@ -1,8 +1,9 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>What Should I Wear?</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       font-family: sans-serif;
@@ -63,31 +64,31 @@
   </style>
 </head>
 <body>
-  <h1>What Should I Wear?</h1>  <label>
+  <h1>What Should I Wear?</h1>
+
+  <label>
     Min "Feels Like" Temperature for T-shirt (°C):
-    <input type="number" id="minTemp">
+    <input type="number" id="minTemp" />
   </label>
   <label>
     Max Comfortable Wind Speed (km/h):
-    <input type="number" id="maxWind">
+    <input type="number" id="maxWind" />
   </label>
   <label>
     Enter location (if location not available):
-    <input type="text" id="manualLocation" list="citySuggestions" placeholder="e.g. London">
+    <input type="text" id="manualLocation" list="citySuggestions" placeholder="e.g. London" />
     <datalist id="citySuggestions"></datalist>
-  </label><button onclick="getWeather()">Check Weather</button>
+  </label>
+
+  <button onclick="getWeather()">Check Weather</button>
 
   <div class="output" id="result"></div>
-  <div class="spinner" id="spinner" style="display: none;"></div>  <script>
-    const apiKey = 'YOUR_API_KEY'; // Replace with your OpenWeatherMap API key
+  <div class="spinner" id="spinner" style="display: none;"></div>
 
-    window.onload = function() {
-      const savedMinTemp = localStorage.getItem('minTemp');
-      const savedMaxWind = localStorage.getItem('maxWind');
-      if (savedMinTemp !== null) document.getElementById('minTemp').value = savedMinTemp;
-      else document.getElementById('minTemp').value = 18;
-      if (savedMaxWind !== null) document.getElementById('maxWind').value = savedMaxWind;
-      else document.getElementById('maxWind').value = 15;
+  <script>
+    window.onload = function () {
+      document.getElementById('minTemp').value = localStorage.getItem('minTemp') || 18;
+      document.getElementById('maxWind').value = localStorage.getItem('maxWind') || 15;
     };
 
     const manualLocationInput = document.getElementById('manualLocation');
@@ -96,7 +97,7 @@
     manualLocationInput.addEventListener('input', () => {
       const query = manualLocationInput.value.trim();
       if (query.length < 2) return;
-      fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${query}&limit=5&appid=${apiKey}`)
+      fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${query}&limit=5&appid=demo`)
         .then(res => res.json())
         .then(data => {
           citySuggestions.innerHTML = '';
@@ -105,8 +106,7 @@
             option.value = `${location.name}${location.state ? ', ' + location.state : ''}, ${location.country}`;
             citySuggestions.appendChild(option);
           });
-        })
-        .catch(err => console.error('Error fetching city suggestions:', err));
+        });
     });
 
     function getWeather() {
@@ -122,8 +122,8 @@
       result.textContent = '';
       spinner.style.display = 'block';
 
-      function fetchWeather(url) {
-        fetch(url)
+      const fetchWeather = (params) => {
+        fetch(`/.netlify/functions/getWeather?${params}`)
           .then(res => res.json())
           .then(data => {
             const feelsLike = data.main.feels_like;
@@ -133,39 +133,36 @@
               : '🧥 Wear something warmer.';
             result.innerHTML = `Location: ${data.name}<br>Feels like: ${feelsLike.toFixed(1)}°C<br>Wind speed: ${windSpeed.toFixed(1)} km/h<br><br>${suggestion}`;
           })
-          .catch(err => {
+          .catch(() => {
             result.textContent = 'Error fetching weather data.';
-            console.error(err);
           })
           .finally(() => {
             spinner.style.display = 'none';
           });
-      }
+      };
 
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(position => {
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
-          const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
-          fetchWeather(url);
+          fetchWeather(`lat=${lat}&lon=${lon}`);
         }, () => {
           if (manualLocation) {
             const city = manualLocation.split(',')[0];
-            const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
-            fetchWeather(url);
+            fetchWeather(`city=${encodeURIComponent(city)}`);
           } else {
-            result.textContent = 'Unable to retrieve your location and no manual location entered.';
+            result.textContent = 'Unable to get location and no manual input.';
             spinner.style.display = 'none';
           }
         });
       } else if (manualLocation) {
         const city = manualLocation.split(',')[0];
-        const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
-        fetchWeather(url);
+        fetchWeather(`city=${encodeURIComponent(city)}`);
       } else {
-        result.textContent = 'Geolocation is not supported and no manual location entered.';
+        result.textContent = 'No location available.';
         spinner.style.display = 'none';
       }
     }
-  </script></body>
+  </script>
+</body>
 </html>
