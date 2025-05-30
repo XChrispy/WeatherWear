@@ -1,0 +1,171 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>What Should I Wear?</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 500px;
+      margin: 2rem auto;
+      padding: 1rem;
+      text-align: center;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-size: 1rem;
+    }
+    input[type="number"], input[type="text"] {
+      width: 80%;
+      padding: 0.5rem;
+      font-size: 1rem;
+      margin-top: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    datalist {
+      width: 80%;
+    }
+    button {
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 1.1rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .output {
+      margin-top: 2rem;
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #007bff;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 1rem auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <h1>What Should I Wear?</h1>  <label>
+    Min "Feels Like" Temperature for T-shirt (°C):
+    <input type="number" id="minTemp">
+  </label>
+  <label>
+    Max Comfortable Wind Speed (km/h):
+    <input type="number" id="maxWind">
+  </label>
+  <label>
+    Enter location (if location not available):
+    <input type="text" id="manualLocation" list="citySuggestions" placeholder="e.g. London">
+    <datalist id="citySuggestions"></datalist>
+  </label><button onclick="getWeather()">Check Weather</button>
+
+  <div class="output" id="result"></div>
+  <div class="spinner" id="spinner" style="display: none;"></div>  <script>
+    const apiKey = 'YOUR_API_KEY'; // Replace with your OpenWeatherMap API key
+
+    window.onload = function() {
+      const savedMinTemp = localStorage.getItem('minTemp');
+      const savedMaxWind = localStorage.getItem('maxWind');
+      if (savedMinTemp !== null) document.getElementById('minTemp').value = savedMinTemp;
+      else document.getElementById('minTemp').value = 18;
+      if (savedMaxWind !== null) document.getElementById('maxWind').value = savedMaxWind;
+      else document.getElementById('maxWind').value = 15;
+    };
+
+    const manualLocationInput = document.getElementById('manualLocation');
+    const citySuggestions = document.getElementById('citySuggestions');
+
+    manualLocationInput.addEventListener('input', () => {
+      const query = manualLocationInput.value.trim();
+      if (query.length < 2) return;
+      fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${query}&limit=5&appid=${apiKey}`)
+        .then(res => res.json())
+        .then(data => {
+          citySuggestions.innerHTML = '';
+          data.forEach(location => {
+            const option = document.createElement('option');
+            option.value = `${location.name}${location.state ? ', ' + location.state : ''}, ${location.country}`;
+            citySuggestions.appendChild(option);
+          });
+        })
+        .catch(err => console.error('Error fetching city suggestions:', err));
+    });
+
+    function getWeather() {
+      const minTemp = parseFloat(document.getElementById('minTemp').value);
+      const maxWind = parseFloat(document.getElementById('maxWind').value);
+      const manualLocation = document.getElementById('manualLocation').value.trim();
+      const result = document.getElementById('result');
+      const spinner = document.getElementById('spinner');
+
+      localStorage.setItem('minTemp', minTemp);
+      localStorage.setItem('maxWind', maxWind);
+
+      result.textContent = '';
+      spinner.style.display = 'block';
+
+      function fetchWeather(url) {
+        fetch(url)
+          .then(res => res.json())
+          .then(data => {
+            const feelsLike = data.main.feels_like;
+            const windSpeed = data.wind.speed * 3.6;
+            const suggestion = (feelsLike >= minTemp && windSpeed <= maxWind)
+              ? '🩳 Wear a t-shirt and shorts.'
+              : '🧥 Wear something warmer.';
+            result.innerHTML = `Location: ${data.name}<br>Feels like: ${feelsLike.toFixed(1)}°C<br>Wind speed: ${windSpeed.toFixed(1)} km/h<br><br>${suggestion}`;
+          })
+          .catch(err => {
+            result.textContent = 'Error fetching weather data.';
+            console.error(err);
+          })
+          .finally(() => {
+            spinner.style.display = 'none';
+          });
+      }
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+          fetchWeather(url);
+        }, () => {
+          if (manualLocation) {
+            const city = manualLocation.split(',')[0];
+            const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+            fetchWeather(url);
+          } else {
+            result.textContent = 'Unable to retrieve your location and no manual location entered.';
+            spinner.style.display = 'none';
+          }
+        });
+      } else if (manualLocation) {
+        const city = manualLocation.split(',')[0];
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+        fetchWeather(url);
+      } else {
+        result.textContent = 'Geolocation is not supported and no manual location entered.';
+        spinner.style.display = 'none';
+      }
+    }
+  </script></body>
+</html>
