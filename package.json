@@ -1,0 +1,10 @@
+{
+  "name": "weather-wear-app",
+  "version": "1.0.0",
+  "description": "Secure weather app using Netlify Functions",
+  "main": "index.js",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "type": "module"
+}
